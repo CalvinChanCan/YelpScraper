@@ -1,5 +1,6 @@
 import os
 import glob
+import io
 import pandas as pd
 from bs4 import BeautifulSoup
 import requests
@@ -43,7 +44,7 @@ def print_business_data(json_api_file):
             print(p['review_count'])
             print(p['url'])
             print(p['url'].split("?", 1)[0])
-            get_reviews2(p['url'].split("?", 1)[0], p['id'], p['name'])
+            get_reviews_json(p['url'].split("?", 1)[0], p['id'], p['name'])
             print("----------")
 
 
@@ -66,8 +67,9 @@ def get_reviews(yelp_restaurant_url, business_id, business_name):
 
         soup = BeautifulSoup(r.content, features="lxml")
 
-        for each_review in soup.findAll("div", {"itemprop": "review"}):
+        print(soup)
 
+        for each_review in soup.findAll("div", {"itemprop": "review"}):
             rating = each_review.find("meta", {"itemprop": "ratingValue"})[
                 'content']
             author = each_review.find("meta", {"itemprop": "author"})[
@@ -97,6 +99,48 @@ def get_reviews(yelp_restaurant_url, business_id, business_name):
                      description])
             myfile.close()
             print("-----------")
+
+
+def get_reviews_json(yelp_restaurant_url, business_id, business_name):
+    num_of_reviews = 0
+
+    r = requests.get(yelp_restaurant_url + "?start=" + str(num_of_reviews))
+
+    soup = BeautifulSoup(r.content, features="lxml")
+
+    page_detail = soup.find("span", {
+        "class": "lemon--span__373c0__3997G text__373c0__2Kxyz text-color--black-extra-light__373c0__2OyzO text-align--left__373c0__2XGa-"}).string
+    num_of_pages = int(page_detail.replace("1 of ", ''))
+
+    print(num_of_pages)
+    max_reviews = num_of_pages * 20
+
+    for num_of_reviews in range(0, max_reviews, 20):
+        r = requests.get(yelp_restaurant_url + "?start=" + str(num_of_reviews))
+
+        soup = BeautifulSoup(r.content, features="lxml")
+
+        yelp_json_list = soup.findAll("script", {"type": "application/json"})
+
+        json_data = yelp_json_list[2].contents[0].strip()
+
+        json_data = json_data.replace("<!--", "")
+        json_data = json_data.replace("-->", "")
+
+        # print(json_data)
+
+        y = json.loads(json_data)
+        print(y)
+        #
+        # with io.open("data.jsonl", 'a+', encoding='utf8') as f:
+        #     f.write(json_data)
+        #     print("-----------")
+
+        with io.open("data.jsonl", 'a+', encoding='utf8') as f:
+            f.write(json_data)
+            print("-----------")
+        # with open('data2.json', 'a+') as outfile:
+        #     json.dump(y, outfile, indent=4)
 
 
 def get_businesses(search_term):
@@ -132,8 +176,6 @@ def merge_csv(file1, file2):
     combined_csv.to_csv("combined_csv.csv", index=False, encoding='utf-8-sig')
 
 
-
-
 def clean_csv(infile):
     infile_obj = open(infile, encoding='utf-8')
 
@@ -142,19 +184,21 @@ def clean_csv(infile):
     outfile_obj = open('outfile.csv', 'w', encoding='utf-8', newline='')
     outfile = csv.writer(outfile_obj, delimiter=',', quoting=csv.QUOTE_ALL)
 
-
     for each_row in csvfile:
         username = each_row[2]
         review = each_row[5]
 
         new_review = review.replace('\n', '').replace('\"', '')
         outfile.writerow(
-            [each_row[0], each_row[1], username, each_row[3], each_row[4], new_review])
+            [each_row[0], each_row[1], username, each_row[3], each_row[4],
+             new_review])
 
         # outfile
 
 
 if __name__ == "__main__":
-    #get_businesses("korean")
-    #print_business_data("20-06-10 16-31-00 API file.json")
-    get_reviews("https://www.yelp.com/biz/cathay-center-weymouth", "test","Cathay Center")
+    #get_businesses("restaurants")
+    # print_business_data("20-06-10 16-31-00 API file.json")
+    print_business_data("20-06-13 01-59-46 API file.json")
+    #get_reviews_json("https://www.yelp.com/biz/cathay-center-weymouth", "test",
+    #                 "Cathay Center")
