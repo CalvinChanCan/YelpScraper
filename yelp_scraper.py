@@ -1,7 +1,9 @@
 import os
 import glob
 import io
+import pprint
 import pandas as pd
+import jsonlines
 from bs4 import BeautifulSoup
 import requests
 import pandas
@@ -69,17 +71,17 @@ def get_reviews(yelp_restaurant_url, business_id, business_name):
 
         print(soup)
 
-        for each_review in soup.findAll("div", {"itemprop": "review"}):
-            rating = each_review.find("meta", {"itemprop": "ratingValue"})[
+        for review_page in soup.findAll("div", {"itemprop": "review"}):
+            rating = review_page.find("meta", {"itemprop": "ratingValue"})[
                 'content']
-            author = each_review.find("meta", {"itemprop": "author"})[
+            author = review_page.find("meta", {"itemprop": "author"})[
                 'content']
 
             review_date = \
-                each_review.find("meta", {"itemprop": "datePublished"})[
+                review_page.find("meta", {"itemprop": "datePublished"})[
                     'content']
 
-            description = each_review.find("p", {
+            description = review_page.find("p", {
                 "itemprop": "description"}).string
 
             description = description.replace('\n\n', '\n')
@@ -108,39 +110,62 @@ def get_reviews_json(yelp_restaurant_url, business_id, business_name):
 
     soup = BeautifulSoup(r.content, features="lxml")
 
-    page_detail = soup.find("span", {
-        "class": "lemon--span__373c0__3997G text__373c0__2Kxyz text-color--black-extra-light__373c0__2OyzO text-align--left__373c0__2XGa-"}).string
-    num_of_pages = int(page_detail.replace("1 of ", ''))
+    try:
+        page_detail = soup.find("span", {
+            "class": "lemon--span__373c0__3997G text__373c0__2Kxyz text-color--black-extra-light__373c0__2OyzO text-align--left__373c0__2XGa-"}).string
+        num_of_pages = int(page_detail.replace("1 of ", ''))
 
-    print(num_of_pages)
-    max_reviews = num_of_pages * 20
+        print(num_of_pages)
+        max_reviews = num_of_pages * 20
+    except Exception as e:
+        print(e)
+        input("Press any key to continue")
 
-    for num_of_reviews in range(0, max_reviews, 20):
         r = requests.get(yelp_restaurant_url + "?start=" + str(num_of_reviews))
 
         soup = BeautifulSoup(r.content, features="lxml")
 
-        yelp_json_list = soup.findAll("script", {"type": "application/json"})
+        page_detail = soup.find("span", {
+            "class": "lemon--span__373c0__3997G text__373c0__2Kxyz text-color--black-extra-light__373c0__2OyzO text-align--left__373c0__2XGa-"}).string
+        num_of_pages = int(page_detail.replace("1 of ", ''))
 
-        json_data = yelp_json_list[2].contents[0].strip()
+        print(num_of_pages)
+        max_reviews = num_of_pages * 20
+
+    for num_of_reviews in range(0, max_reviews, 20):
+        try:
+            r = requests.get(
+                yelp_restaurant_url + "?start=" + str(num_of_reviews))
+
+            soup = BeautifulSoup(r.content, features="lxml")
+
+            yelp_json_list = soup.findAll("script",
+                                          {"type": "application/json"})
+
+            json_data = yelp_json_list[2].contents[0].strip()
+        except Exception as e:
+            print(e)
+            input("Press any key to continue")
+            r = requests.get(
+                yelp_restaurant_url + "?start=" + str(num_of_reviews))
+
+            soup = BeautifulSoup(r.content, features="lxml")
+
+            yelp_json_list = soup.findAll("script",
+                                          {"type": "application/json"})
+
+            json_data = yelp_json_list[2].contents[0].strip()
 
         json_data = json_data.replace("<!--", "")
         json_data = json_data.replace("-->", "")
 
-        # print(json_data)
-
         y = json.loads(json_data)
         print(y)
-        #
-        # with io.open("data.jsonl", 'a+', encoding='utf8') as f:
-        #     f.write(json_data)
-        #     print("-----------")
-
-        with io.open("data.jsonl", 'a+', encoding='utf8') as f:
-            f.write(json_data)
+        with open('data.jsonl', 'a+', encoding='utf8') as outfile:
+            json.dump(y, outfile, indent=4, separators=(',', ': '),
+                      sort_keys=True)
+            outfile.write(",\n")
             print("-----------")
-        # with open('data2.json', 'a+') as outfile:
-        #     json.dump(y, outfile, indent=4)
 
 
 def get_businesses(search_term):
@@ -196,9 +221,108 @@ def clean_csv(infile):
         # outfile
 
 
+def parse_jsonl(filename):
+    # with jsonlines.open(filename) as reader:
+    #     for obj in reader:
+    #         print(obj)
+    with open(filename, encoding='utf-8') as json_file:
+        data = json.load(json_file)
+        print(data)
+
+
+def correct_json():
+    f = open("somenewfile", "w", encoding='utf-8')
+
+    with open('newfile', encoding='utf-8') as json_file:
+
+        f.writelines("[\n")
+        for each_line in json_file:
+            if (each_line == "{\n"):
+                write_line = "\t{\n"
+            elif (each_line == "}\n"):
+                write_line = "\t},\n"
+            else:
+                write_line = "\t" + each_line
+
+            f.writelines(write_line)
+
+        f.writelines("\n]")
+
+
+def yelp_json_reader(filename):
+    with open(filename, encoding='utf-8') as json_file:
+        data = json_file.read()
+        json_data = json.loads(data)
+
+        criteria = json_data[0]['bizDetailsPageProps']['bizHoursProps']
+
+        for each_key in criteria.keys():
+            print(each_key)
+
+        print("------------")
+
+        for review_page in json_data:
+            business_root = review_page['bizDetailsPageProps']
+
+            # Business Hours
+            hours_opened = []
+            for each_hour in business_root['bizHoursProps']['hoursInfoRows']:
+                hours_opened.append(each_hour['hoursInfo']['hours'][0])
+
+            while (len(hours_opened) < 7):
+                hours_opened.append('Closed')
+
+
+            # Business Data
+            business_name = business_root['businessName']
+            business_id = business_root['businessId']
+
+            try:
+                business_site = business_root['bizContactInfoProps']['businessWebsite']['linkText']
+            except Exception as e:
+                business_site = ''
+
+            for each_review in review_page['bizDetailsPageProps']['reviewFeedQueryProps']['reviews']:
+                # User Data
+                user_data = each_review['user']
+                user_name = user_data['altText']
+                user_location = user_data['displayLocation']
+                user_elite_location = user_data['eliteYear']
+                user_friend_count = user_data['friendCount']
+                user_yelp_id = user_data['link']
+                user_photo_count = user_data['photoCount']
+                user_review_count = user_data['reviewCount']
+
+                # Review data
+                business_owner_reply = each_review['businessOwnerReplies']
+                review_rating = each_review['rating']
+                review_feedback_cool = each_review['feedback']['counts']['cool']
+                review_feedback_funny = each_review['feedback']['counts']['funny']
+                review_feedback_useful = each_review['feedback']['counts']['useful']
+                review_date = each_review['localizedDate']
+
+
+
+        print("------------")
+
+
+
 if __name__ == "__main__":
-    #get_businesses("restaurants")
+    # get_businesses("coffee")
     # print_business_data("20-06-10 16-31-00 API file.json")
-    print_business_data("20-06-13 01-59-46 API file.json")
-    #get_reviews_json("https://www.yelp.com/biz/cathay-center-weymouth", "test",
-    #                 "Cathay Center")
+    # print_business_data("20-06-13 15-24-02 API file.json")
+
+    # correct_json()
+    yelp_json_reader("somenewfile")
+
+    # f = open("newfile", "w", encoding='utf-8')
+    #
+    #
+    # with open("data2.jsonl", encoding='utf-8') as json_file:
+    #     for each_line in json_file:
+    #         # print(each_line)
+    #         if (each_line == "}\n"):
+    #             write_line = "},\n"
+    #         else:
+    #             write_line = each_line
+    #         f.writelines(write_line)
