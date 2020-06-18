@@ -1,3 +1,9 @@
+from shutil import copyfile
+import os.path
+from mysql_connection import *
+import MySQLdb
+import mysql.connector
+from os import path
 import os
 import glob
 import io
@@ -24,86 +30,70 @@ from YelpAPI import get_my_key
 # Business Details     URL -- 'https://api.yelp.com/v3/businesses/{id}'
 # Business Reviews     URL -- 'https://api.yelp.com/v3/businesses/{id}/reviews'
 
-def print_business_data(json_api_file):
-    with open('outfile2.csv', 'w', encoding='utf-8',
-              newline='') as myfile:
+def get_business_data(json_api_filename):
+    yelp_business_filename = 'yelp_data_business.csv'
+    if path.exists(yelp_business_filename):
+        myfile = open('yelp_data_business.csv', 'a+', encoding='utf-8',
+                      newline='')
+        wr = csv.writer(myfile)
+    else:
+        myfile = open('yelp_data_business.csv', 'w', encoding='utf-8',
+                      newline='')
         wr = csv.writer(myfile)
         wr.writerow(
-            ["business_id", "business_name", "author", "review_date", "rating",
-             "review"])
+            ["yelp_business_id", "yelp_business_name", "price", "latitude",
+             "longitude", "address1", "address2", "address3", "city",
+             "zip_code", "country", "state", "display_address"])
 
-        myfile.close()
+    with open(json_api_filename) as json_file:
+        data = json.load(json_file)
+        for p in data['businesses']:
+            yelp_business_id = p['id']
+            yelp_business_name = p['name']
+            try:
+                price = p['price']
+            except:
+                price = None
+            latitude = p['coordinates']['latitude']
+            longitude = p['coordinates']['longitude']
+            address1 = p['location']['address1']
+            address2 = p['location']['address2']
+            address3 = p['location']['address3']
+            city = p['location']['city']
+            zip_code = p['location']['zip_code']
+            country = p['location']['country']
+            state = p['location']['state']
+            display_address = p['location']['display_address'][0]
+
+            wr.writerow(
+                [yelp_business_id, yelp_business_name, price, latitude,
+                 longitude,
+                 address1, address2, address3, city, zip_code, country,
+                 state, display_address])
+
+    myfile.close()
+    remove_duplicates(yelp_business_filename,
+                      "yelp_data_business_processed.csv")
+    os.remove(yelp_business_filename)
+
+
+def get_review_data_from_business_json(json_api_file):
+    reviews_json_filename = 'yelp_data_reviews.json'
 
     with open(json_api_file) as json_file:
         data = json.load(json_file)
-        for p in data['businesses']:
-            print(p)
-            print(p['id'])
-            print(p['name'])
-            print(p['coordinates'])
-            print(p['location'])
-            print(p['rating'])
-            print(p['review_count'])
-            print(p['url'])
-            print(p['url'].split("?", 1)[0])
-            get_reviews_json(p['url'].split("?", 1)[0], p['id'], p['name'])
+        for each_business in data['businesses']:
+            business_url = each_business['url'].split("?", 1)[0]
+            get_reviews_json(business_url, reviews_json_filename)
             print("----------")
 
-
-def get_reviews(yelp_restaurant_url, business_id, business_name):
-    num_of_reviews = 0
-
-    r = requests.get(yelp_restaurant_url + "?start=" + str(num_of_reviews))
-
-    soup = BeautifulSoup(r.content, features="lxml")
-
-    page_detail = soup.find("span", {
-        "class": "lemon--span__373c0__3997G text__373c0__2Kxyz text-color--black-extra-light__373c0__2OyzO text-align--left__373c0__2XGa-"}).string
-    num_of_pages = int(page_detail.replace("1 of ", ''))
-
-    print(num_of_pages)
-    max_reviews = num_of_pages * 20
-
-    for num_of_reviews in range(0, max_reviews, 20):
-        r = requests.get(yelp_restaurant_url + "?start=" + str(num_of_reviews))
-
-        soup = BeautifulSoup(r.content, features="lxml")
-
-        print(soup)
-
-        for review_page in soup.findAll("div", {"itemprop": "review"}):
-            rating = review_page.find("meta", {"itemprop": "ratingValue"})[
-                'content']
-            author = review_page.find("meta", {"itemprop": "author"})[
-                'content']
-
-            review_date = \
-                review_page.find("meta", {"itemprop": "datePublished"})[
-                    'content']
-
-            description = review_page.find("p", {
-                "itemprop": "description"}).string
-
-            description = description.replace('\n\n', '\n')
-            description = description.replace('&amp;', '&')
-            description = re.sub(' +', ' ', description)
-
-            print("Rating:" + rating)
-            print("Author:" + author)
-            print("ReviewDate:" + review_date)
-            print("Description:" + description)
-
-            with open('outfilev2.csv', 'a', encoding='utf-8',
-                      newline='') as myfile:
-                wr = csv.writer(myfile)
-                wr.writerow(
-                    [business_id, business_name, author, review_date, rating,
-                     description])
-            myfile.close()
-            print("-----------")
+    # Note sure if i can replace a file with one the same name.
+    correct_json(reviews_json_filename, "yelp_data_reviews2.json")
+    # remove_duplicates(reviews_json_filename)
+    yelp_json_to_csv("yelp_data_reviews2.json")
 
 
-def get_reviews_json(yelp_restaurant_url, business_id, business_name):
+def get_reviews_json(yelp_restaurant_url, out_json_filename):
     num_of_reviews = 0
 
     r = requests.get(yelp_restaurant_url + "?start=" + str(num_of_reviews))
@@ -114,8 +104,6 @@ def get_reviews_json(yelp_restaurant_url, business_id, business_name):
         page_detail = soup.find("span", {
             "class": "lemon--span__373c0__3997G text__373c0__2Kxyz text-color--black-extra-light__373c0__2OyzO text-align--left__373c0__2XGa-"}).string
         num_of_pages = int(page_detail.replace("1 of ", ''))
-
-        print(num_of_pages)
         max_reviews = num_of_pages * 20
     except Exception as e:
         print(e)
@@ -129,7 +117,6 @@ def get_reviews_json(yelp_restaurant_url, business_id, business_name):
             "class": "lemon--span__373c0__3997G text__373c0__2Kxyz text-color--black-extra-light__373c0__2OyzO text-align--left__373c0__2XGa-"}).string
         num_of_pages = int(page_detail.replace("1 of ", ''))
 
-        print(num_of_pages)
         max_reviews = num_of_pages * 20
 
     for num_of_reviews in range(0, max_reviews, 20):
@@ -161,7 +148,7 @@ def get_reviews_json(yelp_restaurant_url, business_id, business_name):
 
         y = json.loads(json_data)
         print(y)
-        with open('data.jsonl', 'a+', encoding='utf8') as outfile:
+        with open(out_json_filename, 'a+', encoding='utf8') as outfile:
             json.dump(y, outfile, indent=4, separators=(',', ': '),
                       sort_keys=True)
             outfile.write(",\n")
@@ -230,10 +217,10 @@ def parse_jsonl(filename):
         print(data)
 
 
-def correct_json():
-    f = open("somenewfile", "w", encoding='utf-8')
+def correct_json(readfile, outfile):
+    f = open(outfile, "w", encoding='utf-8', newline='')
 
-    with open('newfile', encoding='utf-8') as json_file:
+    with open(readfile, "r", encoding='utf-8') as json_file:
 
         f.writelines("[\n")
         for each_line in json_file:
@@ -248,18 +235,59 @@ def correct_json():
 
         f.writelines("\n]")
 
+    f.close()
 
-def yelp_json_reader(filename):
-    with open(filename, encoding='utf-8') as json_file:
+
+def yelp_json_to_csv(readfile):
+    yelp_user_dict = {}
+
+    business_hours_filename = "yelp_data_business_hours.csv"
+    reviews_filename = "yelp_data_business_reviews.csv"
+    user_filename = "yelp_data_users.csv"
+
+    if path.exists(business_hours_filename):
+        business_hours_file = open(business_hours_filename, "a+",
+                                   encoding='utf-8', newline='')
+        # business_hours_csv = csv.writer(business_hours_file, delimiter=',',
+        #                                 quoting=csv.QUOTE_ALL)
+        business_hours_csv = csv.writer(business_hours_file, delimiter=',')
+    else:
+        business_hours_file = open(business_hours_filename, "w",
+                                   encoding='utf-8', newline='')
+        business_hours_csv = csv.writer(business_hours_file, delimiter=',')
+        business_hours_csv.writerow(
+            ["business_id", "business_name", "day_of_week", "hours_opened"])
+
+    if path.exists(reviews_filename):
+        reviews_file = open(reviews_filename, "a+", encoding='utf-8',
+                            newline='')
+        # reviews_csv = csv.writer(reviews_file, delimiter=',', quoting=csv.QUOTE_ALL)
+        reviews_csv = csv.writer(reviews_file, delimiter=',')
+    else:
+        reviews_file = open(reviews_filename, "w", encoding='utf-8',
+                            newline='')
+        reviews_csv = csv.writer(reviews_file, delimiter=',')
+        reviews_csv.writerow(
+            ["business_id", "business_name", "user_yelp_id", "user_name",
+             "review_date", "review_rating", "review_feedback_cool",
+             "review_feedback_funny", "review_feedback_useful",
+             "business_owner_reply", "review_written"])
+    if path.exists(user_filename):
+
+        user_file = open(user_filename, "a+", encoding='utf-8', newline='')
+        # user_csv = csv.writer(user_file, delimiter=',', quoting=csv.QUOTE_ALL)
+        user_csv = csv.writer(user_file, delimiter=',')
+    else:
+        user_file = open(user_filename, "w", encoding='utf-8', newline='')
+        user_csv = csv.writer(user_file, delimiter=',')
+        user_csv.writerow(
+            ["user_yelp_id", "user_name", "user_city", "user_state",
+             "user_elite",
+             "user_friend_count", "user_review_count", "user_photo_count"])
+
+    with open(readfile, encoding='utf-8') as json_file:
         data = json_file.read()
         json_data = json.loads(data)
-
-        criteria = json_data[0]['bizDetailsPageProps']['bizHoursProps']
-
-        for each_key in criteria.keys():
-            print(each_key)
-
-        print("------------")
 
         for review_page in json_data:
             business_root = review_page['bizDetailsPageProps']
@@ -272,57 +300,110 @@ def yelp_json_reader(filename):
             while (len(hours_opened) < 7):
                 hours_opened.append('Closed')
 
-
             # Business Data
             business_name = business_root['businessName']
             business_id = business_root['businessId']
 
             try:
-                business_site = business_root['bizContactInfoProps']['businessWebsite']['linkText']
+                business_site = \
+                    business_root['bizContactInfoProps']['businessWebsite'][
+                        'linkText']
             except Exception as e:
                 business_site = ''
 
-            for each_review in review_page['bizDetailsPageProps']['reviewFeedQueryProps']['reviews']:
+            for each_review in \
+                    review_page['bizDetailsPageProps']['reviewFeedQueryProps'][
+                        'reviews']:
                 # User Data
                 user_data = each_review['user']
                 user_name = user_data['altText']
                 user_location = user_data['displayLocation']
-                user_elite_location = user_data['eliteYear']
+
+                try:
+                    user_city = user_location.split(",")[0]
+                    user_state = user_location.split(",")[1].strip(" ")
+                except Exception as e:
+                    user_city = ""
+                    user_state = ""
+
+                user_elite = user_data['eliteYear']
                 user_friend_count = user_data['friendCount']
-                user_yelp_id = user_data['link']
+                user_yelp_id = user_data['link'].replace(
+                    "/user_details?userid=", "")
+
                 user_photo_count = user_data['photoCount']
                 user_review_count = user_data['reviewCount']
 
+                if user_yelp_id == "":
+                    pass
+                elif user_yelp_id not in yelp_user_dict:
+                    user_csv.writerow(
+                        [user_yelp_id, user_name, user_city, user_state,
+                         user_elite,
+                         user_friend_count, user_review_count,
+                         user_photo_count])
+
+                    yelp_user_dict[user_yelp_id] = None
+
                 # Review data
                 business_owner_reply = each_review['businessOwnerReplies']
+                review_written = each_review['comment']['text']
                 review_rating = each_review['rating']
                 review_feedback_cool = each_review['feedback']['counts']['cool']
-                review_feedback_funny = each_review['feedback']['counts']['funny']
-                review_feedback_useful = each_review['feedback']['counts']['useful']
+                review_feedback_funny = each_review['feedback']['counts'][
+                    'funny']
+                review_feedback_useful = each_review['feedback']['counts'][
+                    'useful']
                 review_date = each_review['localizedDate']
 
+                review_written = review_written.replace("&amp;#39;", "\'") \
+                    .replace("<br&gt", "").replace("&amp;#34;", "\"") \
+                    .replace("\n", "")
+                review_written = review_written.replace("  ", " ").replace(";;",
+                                                                           "").replace(
+                    ";-", ":").replace("&amp;amp;", "&")
 
+                for i in range(0, 6, 1):
+                    business_hours_csv.writerow(
+                        [business_id, business_name, i, hours_opened[i]])
+
+                reviews_csv.writerow(
+                    [business_id, business_name, user_yelp_id, user_name,
+                     review_date, review_rating, review_feedback_cool,
+                     review_feedback_funny, review_feedback_useful,
+                     business_owner_reply, review_written])
 
         print("------------")
+    remove_duplicates(business_hours_filename,
+                      "yelp_data_business_hours_processed.csv")
+    remove_duplicates(reviews_filename, "yelp_data_reviews_processed.csv")
+    remove_duplicates(user_filename, "yelp_data_users_processed.csv")
 
+    business_hours_file.close()
+    reviews_file.close()
+    user_file.close()
 
+    os.remove(business_hours_filename)
+    os.remove(reviews_filename)
+    os.remove(user_filename)
 
-if __name__ == "__main__":
-    # get_businesses("coffee")
-    # print_business_data("20-06-10 16-31-00 API file.json")
-    # print_business_data("20-06-13 15-24-02 API file.json")
-
-    # correct_json()
-    yelp_json_reader("somenewfile")
-
-    # f = open("newfile", "w", encoding='utf-8')
+    # copyfile(r"C:\Users\chanc\PycharmProjects\YS\yelp_data_business_hours.csv",
+    #          r"C:\ProgramData\MySQL\MySQL Server 8.0\Uploads")
     #
+    # copyfile(
+    #     r"C:\Users\chanc\PycharmProjects\YS\yelp_data_business_reviews.csv.csv",
+    #     r"C:\ProgramData\MySQL\MySQL Server 8.0\Uploads")
     #
-    # with open("data2.jsonl", encoding='utf-8') as json_file:
-    #     for each_line in json_file:
-    #         # print(each_line)
-    #         if (each_line == "}\n"):
-    #             write_line = "},\n"
-    #         else:
-    #             write_line = each_line
-    #         f.writelines(write_line)
+    # copyfile(r"C:\Users\chanc\PycharmProjects\YS\yelp_data_users.csv",
+    #          r"C:\ProgramData\MySQL\MySQL Server 8.0\Uploads")
+    #
+
+
+def remove_duplicates(filename, outfile):
+    df = pd.read_csv(filename)
+    df.drop_duplicates(inplace=True)
+    df.to_csv(outfile, index=False)
+
+# if __name__ == "__main__":
+#     yelp_json_to_csv("somenewfile")
+#
