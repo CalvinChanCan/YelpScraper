@@ -32,26 +32,42 @@ from YelpAPI import get_my_key
 
 def get_business_data(json_api_filename):
     yelp_business_filename = 'yelp_data_business.csv'
+
     if path.exists(yelp_business_filename):
-        myfile = open('yelp_data_business.csv', 'a+', encoding='utf-8',
+        myfile = open(yelp_business_filename, 'a+', encoding='utf-8',
                       newline='')
-        wr = csv.writer(myfile)
+        wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
     else:
-        myfile = open('yelp_data_business.csv', 'w', encoding='utf-8',
+        myfile = open(yelp_business_filename, 'w', encoding='utf-8',
                       newline='')
-        wr = csv.writer(myfile)
+
+        wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
         wr.writerow(
             ["yelp_business_id", "yelp_business_name", "price", "latitude",
              "longitude", "address1", "address2", "address3", "city",
-             "zip_code", "country", "state", "display_address"])
+             "zip_code", "country", "state", "display_address", "rating"])
+
+    yelp_business_categories = 'yelp_data_business_categories.csv'
+
+    if path.exists(yelp_business_categories):
+        categories_file = open(yelp_business_categories, 'a+', encoding='utf-8',
+                               newline='')
+        categories_csv = csv.writer(categories_file, quoting=csv.QUOTE_ALL)
+    else:
+        categories_file = open(yelp_business_categories, 'w', encoding='utf-8',
+                               newline='')
+        categories_csv = csv.writer(categories_file, quoting=csv.QUOTE_ALL)
+        categories_csv.writerow(
+            ["yelp_business_id", "yelp_business_name", "category"])
 
     with open(json_api_filename) as json_file:
         data = json.load(json_file)
+
         for p in data['businesses']:
             yelp_business_id = p['id']
             yelp_business_name = p['name']
             try:
-                price = p['price']
+                price = len(p['price'])
             except:
                 price = None
             latitude = p['coordinates']['latitude']
@@ -61,20 +77,38 @@ def get_business_data(json_api_filename):
             address3 = p['location']['address3']
             city = p['location']['city']
             zip_code = p['location']['zip_code']
+
+            while len(zip_code) < 5:
+                zip_code = "0" + zip_code
+
             country = p['location']['country']
             state = p['location']['state']
             display_address = p['location']['display_address'][0]
+            rating = p['rating']
 
             wr.writerow(
                 [yelp_business_id, yelp_business_name, price, latitude,
                  longitude,
                  address1, address2, address3, city, zip_code, country,
-                 state, display_address])
+                 state, display_address, rating])
+
+            for each_category in p['categories']:
+                categories_csv.writerow([yelp_business_id, yelp_business_name,
+                                         each_category['title']])
 
     myfile.close()
-    remove_duplicates(yelp_business_filename,
-                      "yelp_data_business_processed.csv")
-    os.remove(yelp_business_filename)
+    categories_file.close()
+    # remove_duplicates(yelp_business_filename,
+    #                   "yelp_data_business_processed.csv")
+    remove_duplicates(yelp_business_filename)
+    remove_duplicates(yelp_business_categories)
+
+    # os.remove(yelp_business_filename)
+    # dirname = os.path.dirname(__file__)
+    # filename = os.path.join(dirname, "yelp_data_business_processed.csv")
+    # renamed_file = os.path.join(dirname, "yelp_data_business.csv")
+    # os.rename(filename, renamed_file)
+    # os.rename("yelp_data_business_processed.csv", "yelp_data_business.csv")
 
 
 def get_review_data_from_business_json(json_api_file):
@@ -155,15 +189,19 @@ def get_reviews_json(yelp_restaurant_url, out_json_filename):
             print("-----------")
 
 
-def get_businesses(search_term):
+def get_businesses(search_term, page):
     API_KEY = get_my_key()
     ENDPOINT = 'https://api.yelp.com/v3/businesses/search'
     HEADERS = {'Authorization': 'bearer %s' % API_KEY}
 
+    offset = (page * 50) + 1
+
     PARAMETERS = {'term': search_term,
                   'limit': 50,
                   'radius': 10000,
-                  'location': 'Boston, MA'}
+                  'location': 'Boston, MA',
+                  'offset': offset
+                  }
 
     response = requests.get(url=ENDPOINT,
                             params=PARAMETERS,
@@ -175,11 +213,13 @@ def get_businesses(search_term):
 
     now = datetime.now()
     current_time = now.strftime("%y-%m-%d %H-%M-%S")
-    filename = current_time + " API file.json"
+    filename = current_time + " " + search_term + " API file.json"
 
-    file = open(filename, "w")
+    file = open("./archive/" + filename, "w")
     file.write(json.dumps(business_data, indent=3))
     file.close()
+
+    get_business_data(filename)
 
 
 def merge_csv(file1, file2):
@@ -374,10 +414,14 @@ def yelp_json_to_csv(readfile):
                      business_owner_reply, review_written])
 
         print("------------")
-    remove_duplicates(business_hours_filename,
-                      "yelp_data_business_hours_processed.csv")
-    remove_duplicates(reviews_filename, "yelp_data_reviews_processed.csv")
-    remove_duplicates(user_filename, "yelp_data_users_processed.csv")
+    # remove_duplicates(business_hours_filename,
+    #                   "yelp_data_business_hours_processed.csv")
+    # remove_duplicates(reviews_filename, "yelp_data_reviews_processed.csv")
+    # remove_duplicates(user_filename, "yelp_data_users_processed.csv")
+
+    remove_duplicates(business_hours_filename)
+    remove_duplicates(reviews_filename)
+    remove_duplicates(user_filename)
 
     business_hours_file.close()
     reviews_file.close()
@@ -399,10 +443,12 @@ def yelp_json_to_csv(readfile):
     #
 
 
-def remove_duplicates(filename, outfile):
+def remove_duplicates(filename):
     df = pd.read_csv(filename)
     df.drop_duplicates(inplace=True)
-    df.to_csv(outfile, index=False)
+    df.to_csv(filename + "temp", index=False, quoting=csv.QUOTE_ALL)
+    os.remove(filename)
+    os.rename(filename + "temp", filename)
 
 # if __name__ == "__main__":
 #     yelp_json_to_csv("somenewfile")

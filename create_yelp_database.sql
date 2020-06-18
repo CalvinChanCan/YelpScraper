@@ -9,141 +9,8 @@ SET @OLD_SQL_MODE = @@SQL_MODE, SQL_MODE =
 -- Schema yelpdb
 -- -----------------------------------------------------
 DROP SCHEMA IF EXISTS `yelpdb`;
-
--- -----------------------------------------------------
--- Schema yelpdb
--- -----------------------------------------------------
 CREATE SCHEMA IF NOT EXISTS `yelpdb` DEFAULT CHARACTER SET utf8;
 USE `yelpdb`;
-
--- -----------------------------------------------------
--- Table `yelpdb`.`Authors`
--- -----------------------------------------------------
-DROP TABLE IF EXISTS `yelpdb`.`Authors`;
-
-CREATE TABLE IF NOT EXISTS `yelpdb`.`Authors`
-(
-    `idAuthors` INT         NOT NULL AUTO_INCREMENT,
-    `FirstName` VARCHAR(45) NULL,
-    `LastName`  VARCHAR(45) NULL,
-    PRIMARY KEY (`idAuthors`)
-)
-    ENGINE = InnoDB;
-
-
--- -----------------------------------------------------
--- Table `yelpdb`.`Demographics`
--- -----------------------------------------------------
-DROP TABLE IF EXISTS `yelpdb`.`Demographics`;
-
-CREATE TABLE IF NOT EXISTS `yelpdb`.`Demographics`
-(
-    `idDemographics`  INT NOT NULL,
-    `Male`            INT NULL,
-    `Female`          INT NULL,
-    `Income`          INT NULL,
-    `TotalPopulation` INT NULL,
-    PRIMARY KEY (`idDemographics`)
-)
-    ENGINE = InnoDB;
-
-
--- -----------------------------------------------------
--- Table `yelpdb`.`County`
--- -----------------------------------------------------
-DROP TABLE IF EXISTS `yelpdb`.`County`;
-
-CREATE TABLE IF NOT EXISTS `yelpdb`.`County`
-(
-    `idCounty`                    INT         NOT NULL,
-    `Demographics_idDemographics` INT         NULL,
-    `State`                       VARCHAR(45) NULL,
-    PRIMARY KEY (`idCounty`),
-    INDEX `fk_County_Demographics1_idx` (`Demographics_idDemographics` ASC) VISIBLE,
-    CONSTRAINT `fk_County_Demographics1`
-        FOREIGN KEY (`Demographics_idDemographics`)
-            REFERENCES `yelpdb`.`Demographics` (`idDemographics`)
-            ON DELETE NO ACTION
-            ON UPDATE NO ACTION
-)
-    ENGINE = InnoDB;
-
-
--- -----------------------------------------------------
--- Table `yelpdb`.`City`
--- -----------------------------------------------------
-DROP TABLE IF EXISTS `yelpdb`.`City`;
-
-CREATE TABLE IF NOT EXISTS `yelpdb`.`City`
-(
-    `idCity`          INT         NOT NULL AUTO_INCREMENT,
-    `CityName`        VARCHAR(45) NOT NULL,
-    `Latitude`        DOUBLE      NOT NULL,
-    `Longitude`       DOUBLE      NOT NULL,
-    `County_idCounty` INT         NOT NULL,
-    PRIMARY KEY (`idCity`),
-    INDEX `fk_City_County1_idx` (`County_idCounty` ASC) VISIBLE,
-    CONSTRAINT `fk_City_County1`
-        FOREIGN KEY (`County_idCounty`)
-            REFERENCES `yelpdb`.`County` (`idCounty`)
-            ON DELETE NO ACTION
-            ON UPDATE NO ACTION
-)
-    ENGINE = InnoDB;
-
-
--- -----------------------------------------------------
--- Table `yelpdb`.`BookCheckout`
--- -----------------------------------------------------
-DROP TABLE IF EXISTS `yelpdb`.`BookCheckout`;
-
-CREATE TABLE IF NOT EXISTS `yelpdb`.`BookCheckout`
-(
-    `idBookCheckout` INT  NOT NULL,
-    `City_idCity`    INT  NOT NULL,
-    `CheckoutDate`   DATE NOT NULL,
-    PRIMARY KEY (`idBookCheckout`),
-    INDEX `fk_BookCheckout_City1_idx` (`City_idCity` ASC) VISIBLE,
-    CONSTRAINT `fk_BookCheckout_City1`
-        FOREIGN KEY (`City_idCity`)
-            REFERENCES `yelpdb`.`City` (`idCity`)
-            ON DELETE NO ACTION
-            ON UPDATE NO ACTION
-)
-    ENGINE = InnoDB;
-
-
--- -----------------------------------------------------
--- Table `yelpdb`.`Books`
--- -----------------------------------------------------
-DROP TABLE IF EXISTS `yelpdb`.`Books`;
-
-CREATE TABLE IF NOT EXISTS `yelpdb`.`Books`
-(
-    `idBook`                      INT          NOT NULL AUTO_INCREMENT,
-    `Subject`                     VARCHAR(500) NULL,
-    `ISBN`                        VARCHAR(200) NULL,
-    `Authors_idAuthors`           INT          NOT NULL,
-    `BookCheckout_idBookCheckout` INT          NULL,
-    `BibNum`                      VARCHAR(45)  NOT NULL,
-    `Title`                       VARCHAR(500) NOT NULL,
-    `Publisher`                   VARCHAR(100) NULL,
-    PRIMARY KEY (`idBook`),
-    INDEX `fk_Books_Authors1_idx` (`Authors_idAuthors` ASC) VISIBLE,
-    INDEX `fk_Books_BookCheckout1_idx` (`BookCheckout_idBookCheckout` ASC) VISIBLE,
-    CONSTRAINT `fk_Books_Authors1`
-        FOREIGN KEY (`Authors_idAuthors`)
-            REFERENCES `yelpdb`.`Authors` (`idAuthors`)
-            ON DELETE NO ACTION
-            ON UPDATE NO ACTION,
-    CONSTRAINT `fk_Books_BookCheckout1`
-        FOREIGN KEY (`BookCheckout_idBookCheckout`)
-            REFERENCES `yelpdb`.`BookCheckout` (`idBookCheckout`)
-            ON DELETE NO ACTION
-            ON UPDATE NO ACTION
-)
-    ENGINE = InnoDB;
-
 
 -- -----------------------------------------------------
 -- Table `yelpdb`.`Usernames`
@@ -152,6 +19,7 @@ DROP TABLE IF EXISTS `yelpdb`.`Usernames`;
 
 CREATE TABLE IF NOT EXISTS `yelpdb`.`Usernames`
 (
+    `UsernameId`   INT          NOT NULL AUTO_INCREMENT,
     `Username`     VARCHAR(255) NOT NULL,
     `FirstName`    VARCHAR(45)  NULL,
     `LastName`     VARCHAR(45)  NULL,
@@ -166,7 +34,7 @@ CREATE TABLE IF NOT EXISTS `yelpdb`.`Usernames`
     `ReviewCount`  INT          NULL,
     `PhotoCount`   INT          NULL,
     `Yelp_User_id` TEXT         NULL,
-    PRIMARY KEY (`Username`)
+    PRIMARY KEY (`UsernameId`)
 )
     ENGINE = InnoDB;
 
@@ -178,28 +46,23 @@ DROP TABLE IF EXISTS `yelpdb`.`Businesses`;
 
 CREATE TABLE IF NOT EXISTS `yelpdb`.`Businesses`
 (
-    `idBusinesses` INT                                NOT NULL AUTO_INCREMENT,
-    `BusinessName` VARCHAR(45)                        NULL,
-    `ReviewCount`  INT                                NULL,
-    `Rating`       DOUBLE                             NULL,
-    `latitude`     DOUBLE                             NULL,
-    `Longitude`    DOUBLE                             NULL,
-    `price`        VARCHAR(45)                        NULL,
-    `City_idCity`  INT                                NOT NULL,
-    `ZipCode`      VARCHAR(45)                        NULL,
-    `Address`      VARCHAR(45)                        NULL,
-    `Phone`        VARCHAR(45)                        NULL,
-    `BusinessType` ENUM ("Coffee Shop", "Restaurant") NULL,
-    PRIMARY KEY (`idBusinesses`),
-    INDEX `fk_Businesses_City1_idx` (`City_idCity` ASC) VISIBLE,
-    CONSTRAINT `fk_Businesses_City1`
-        FOREIGN KEY (`City_idCity`)
-            REFERENCES `yelpdb`.`City` (`idCity`)
-            ON DELETE NO ACTION
-            ON UPDATE NO ACTION
+    `idBusiness`       INT           NOT NULL AUTO_INCREMENT,
+    `BusinessName`     VARCHAR(255)   NULL,
+    `ReviewCount`      INT           NULL,
+    `Rating`           DECIMAL(3, 1) NULL,
+    `latitude`         DOUBLE        NULL,
+    `Longitude`        DOUBLE        NULL,
+    `price`            VARCHAR(45)   NULL,
+    `city`             VARCHAR(45)   NULL,
+    `state`            VARCHAR(45)   NULL,
+    `ZipCode`          VARCHAR(45)   NULL,
+    `Address`          VARCHAR(45)   NULL,
+    `Phone`            VARCHAR(45)   NULL,
+    `yelp_business_id` TEXT          NULL,
+
+    PRIMARY KEY (`idBusiness`)
 )
     ENGINE = InnoDB;
-
 
 -- -----------------------------------------------------
 -- Table `yelpdb`.`Reviews`
@@ -212,89 +75,36 @@ CREATE TABLE IF NOT EXISTS `yelpdb`.`Reviews`
     `Yelp_Review_id` VARCHAR(255)  NULL,
     `Rating`         DECIMAL(2, 1) NULL,
     `Reviews`        TEXT          NULL,
-    `Username`       VARCHAR(255)  NOT NULL,
-    `idBusinesses`   INT           NOT NULL,
+    `Username`       INT           NOT NULL,
+    `idBusiness`     INT           NOT NULL,
     `ReviewDate`     DATE          NULL,
     PRIMARY KEY (`idReviews`),
     INDEX `fk_Reviews_Users1_idx` (`Username` ASC) VISIBLE,
-    INDEX `fk_Reviews_Businesses1_idx` (`idBusinesses` ASC) VISIBLE,
+    INDEX `fk_Reviews_Businesses1_idx` (`idBusiness` ASC) VISIBLE,
     CONSTRAINT `fk_Reviews_Users1`
         FOREIGN KEY (`Username`)
-            REFERENCES `yelpdb`.`Usernames` (`Username`)
+            REFERENCES `yelpdb`.`Usernames` (`UsernameId`)
             ON DELETE NO ACTION
             ON UPDATE NO ACTION,
     CONSTRAINT `fk_Reviews_Businesses1`
-        FOREIGN KEY (`idBusinesses`)
-            REFERENCES `yelpdb`.`Businesses` (`idBusinesses`)
+        FOREIGN KEY (`idBusiness`)
+            REFERENCES `yelpdb`.`Businesses` (`idBusiness`)
             ON DELETE NO ACTION
             ON UPDATE NO ACTION
 )
     ENGINE = InnoDB;
 
-
 -- -----------------------------------------------------
--- Table `yelpdb`.`Weather`
+-- Table `yelpdb`.`Businesses_Categories`
 -- -----------------------------------------------------
-DROP TABLE IF EXISTS `yelpdb`.`Weather`;
-
-CREATE TABLE IF NOT EXISTS `yelpdb`.`Weather`
+DROP TABLE IF EXISTS Businesses_Categories;
+CREATE TABLE IF NOT EXISTS Businesses_Categories
 (
-    `idWeather`   INT    NOT NULL AUTO_INCREMENT,
-    `Date`        DATE   NULL,
-    `Temperature` DOUBLE NULL,
-    `City_idCity` INT    NOT NULL,
-    PRIMARY KEY (`idWeather`),
-    INDEX `fk_Weather_City1_idx` (`City_idCity` ASC) VISIBLE,
-    CONSTRAINT `fk_Weather_City1`
-        FOREIGN KEY (`City_idCity`)
-            REFERENCES `yelpdb`.`City` (`idCity`)
-            ON DELETE NO ACTION
-            ON UPDATE NO ACTION
-)
-    ENGINE = InnoDB;
 
-
--- -----------------------------------------------------
--- Table `yelpdb`.`CrimeType`
--- -----------------------------------------------------
-DROP TABLE IF EXISTS `yelpdb`.`CrimeType`;
-
-CREATE TABLE IF NOT EXISTS `yelpdb`.`CrimeType`
-(
-    `CrimeCode`        INT          NOT NULL,
-    `CrimeDescription` VARCHAR(255) NOT NULL,
-    `CrimeGroup`       VARCHAR(45)  NULL,
-    PRIMARY KEY (`CrimeCode`)
-)
-    ENGINE = InnoDB;
-
-
--- -----------------------------------------------------
--- Table `yelpdb`.`Crime`
--- -----------------------------------------------------
-DROP TABLE IF EXISTS `yelpdb`.`Crime`;
-
-CREATE TABLE IF NOT EXISTS `yelpdb`.`Crime`
-(
-    `idCrime`        INT    NOT NULL AUTO_INCREMENT,
-    `City_idCity`    INT    NOT NULL,
-    `CrimeCode`      INT    NOT NULL,
-    `OccurredOnDate` DATE   NULL,
-    `Latitude`       DOUBLE NULL,
-    `Longitude`      DOUBLE NULL,
-    PRIMARY KEY (`idCrime`, `CrimeCode`),
-    INDEX `fk_Crime_City1_idx` (`City_idCity` ASC) VISIBLE,
-    INDEX `fk_Crime_CrimeType1_idx` (`CrimeCode` ASC) VISIBLE,
-    CONSTRAINT `fk_Crime_City1`
-        FOREIGN KEY (`City_idCity`)
-            REFERENCES `yelpdb`.`City` (`idCity`)
-            ON DELETE NO ACTION
-            ON UPDATE NO ACTION,
-    CONSTRAINT `fk_Crime_CrimeType1`
-        FOREIGN KEY (`CrimeCode`)
-            REFERENCES `yelpdb`.`CrimeType` (`CrimeCode`)
-            ON DELETE NO ACTION
-            ON UPDATE NO ACTION
+    `business_id`   INT AUTO_INCREMENT NOT NULL,
+    `business_name` TEXT,
+    `category`      TEXT,
+    PRIMARY KEY (`business_id`)
 )
     ENGINE = InnoDB;
 
@@ -304,10 +114,6 @@ SET FOREIGN_KEY_CHECKS = @OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS = @OLD_UNIQUE_CHECKS;
 
 
-
--- ------------------------------
--- ^^^ FOWARD ENGINEER ABOVE ^^^
--- ------------------------------
 -- -----------------------------------------------------
 -- Business and review Staging
 -- -----------------------------------------------------
@@ -316,27 +122,80 @@ CREATE TABLE IF NOT EXISTS Businesses_Staging
 (
     `business_id`     TEXT,
     `business_name`   TEXT,
-    `review_count`    TEXT,
-    `rating`          TEXT,
+    `price`           INT,
     `latitude`        TEXT,
     `longitude`       TEXT,
-    `price`           TEXT,
+    `address1`        TEXT,
+    `address2`        TEXT,
+    `address3`        TEXT,
     `city`            TEXT,
     `zip_code`        TEXT,
-    `state`           TEXT,
     `country`         TEXT,
+    `state`           TEXT,
     `display_address` TEXT,
-    `phone`           TEXT,
-    `business_type`   TEXT
+    `rating`          TEXT
 )
     ENGINE = InnoDB;
 
+DROP TABLE IF EXISTS Categories_Staging;
+CREATE TABLE IF NOT EXISTS Categories_Staging
+(
 
-LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/yelp_data_users_processed.csv' IGNORE INTO TABLE yelpdb.Yelp_Users_stagings
-    FIELDS TERMINATED BY ','
-    LINES TERMINATED BY '\n'
+    `business_id`   TEXT,
+    `business_name` TEXT,
+    `category`      TEXT
+)
+    ENGINE = InnoDB;
+
+LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/yelp_data_business_categories.csv' INTO TABLE yelpdb.Categories_Staging
+    FIELDS TERMINATED BY ',' ENCLOSED BY '"'
+    LINES TERMINATED BY '\r\n'
     IGNORE 1 LINES
-    (user_id, username, city, state, elite, friend_count, review_count, photo_count);
+    (business_id, business_name, category);
+
+SELECT * FROM categories_staging;
+SELECT *FROM Businesses_Staging;
+SELECT *FROM businesses;
+SELECT * FROM usernames;
+
+
+# SELECT LPAD(zip, 5, '0') as zipcode FROM table;
+
+INSERT INTO yelpdb.businesses (BusinessName, Rating, latitude, Longitude, price, city, state, ZipCode, Address,
+                               yelp_business_id)
+    SELECT business_name,
+           rating,
+           CAST(latitude AS DOUBLE) as Latitude,
+           CAST(longitude AS DOUBLE) as Longitude,
+           price,
+           city,
+           state,
+           LPAD(zip_code, 5, '0'),
+           address1,
+           business_id
+    from yelpdb.Businesses_Staging;
+
+
+    SELECT business_name,
+           rating,
+           CAST(latitude AS DOUBLE) as Latitude,
+           CAST(longitude AS DOUBLE) as Longitude,
+           price,
+           city,
+           state,
+           zip_code,
+           address1,
+           business_id
+    from yelpdb.Businesses_Staging;
+
+
+SELECT * FROM businesses_staging;
+LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/yelp_data_business.csv' IGNORE INTO TABLE yelpdb.Businesses_Staging
+    FIELDS TERMINATED BY ',' ENCLOSED BY '"'
+    LINES TERMINATED BY '\r\n'
+    IGNORE 1 LINES
+    (business_id, business_name, price, latitude, longitude, address1, address2, address3, city, zip_code, country,
+     state, display_address, rating);
 
 
 
@@ -351,6 +210,8 @@ CREATE TABLE IF NOT EXISTS Yelp_Users_stagings
     `friend_count` INT,
     `review_count` INT,
     `photo_count`  INT
+
+
 )
     ENGINE = InnoDB;
 
@@ -361,28 +222,30 @@ LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/yelp_data_users_
     IGNORE 1 LINES
     (user_id, username, city, state, elite, friend_count, review_count, photo_count);
 
+SELECT *FROM yelp_users_stagings;
 
-SELECT *
-FROM usernames;
-SELECT *
-FROM yelpdb.yelp_users_stagings;
-
-SELECT user_id, city, state, elite, friend_count, review_count, photo_count
-from yelpdb.yelp_users_stagings;
-
-INSERT INTO yelpdb.Usernames (Username, FirstName, City, State, Elite, FriendCount, ReviewCount, PhotoCount)
-SELECT user_id,
-       username,
+INSERT INTO yelpdb.Usernames (Username, City, State, Elite, FriendCount, ReviewCount, PhotoCount, Yelp_User_id)
+SELECT username,
        city,
        state,
        elite,
        friend_count,
        review_count,
-       photo_count
+       photo_count,
+       user_id
 from yelpdb.yelp_users_stagings;
 
 SELECT *
 From usernames;
+
+SELECT *
+FROM categories_staging;
+
+SELECT *
+FROM businesses;
+
+SELECT *
+FROM reviews;
 
 #
 #
@@ -446,7 +309,7 @@ From usernames;
 #
 #
 # ALTER TABLE yelpdb.reviews_staging
-# 	ADD column idBusinesses TEXT;
+# 	ADD column idBusiness TEXT;
 #
 # SELECT * FROM yelpdb.businesses;
 # SELECT * FROM reviews_staging;
@@ -463,14 +326,14 @@ From usernames;
 # 	yelpdb.businesses t2
 # ON t1.business_id = t2.business_id
 # SET
-# 	t1.idBusinesses = t2.idBusinesses
-# WHERE t1.idBusinesses IS NULL;
+# 	t1.idBusiness = t2.idBusiness
+# WHERE t1.idBusiness IS NULL;
 # SET SQL_SAFE_UPDATES = 1;
 # SELECT * FROM yelpdb.reviews_staging;
 #
 # SET foreign_key_checks = 0;
-# INSERT INTO yelpdb.reviews (Username, Rating, Reviews, ReviewDate, idBusinesses)
-# 	SELECT 1, CAST(rating AS DECIMAL(3,2)), review, STR_TO_DATE(Review_date, '%Y-%m-%d'), idBusinesses
+# INSERT INTO yelpdb.reviews (Username, Rating, Reviews, ReviewDate, idBusiness)
+# 	SELECT 1, CAST(rating AS DECIMAL(3,2)), review, STR_TO_DATE(Review_date, '%Y-%m-%d'), idBusiness
 # 	FROM yelpdb.reviews_staging;
 # SET foreign_key_checks = 1;
 #
@@ -708,14 +571,14 @@ From usernames;
 # 	yelpdb.businesses t2
 # ON t1.business_id = t2.business_id
 # SET
-# 	t1.idBusinesses = t2.idBusinesses
-# WHERE t1.idBusinesses IS NULL;
+# 	t1.idBusiness = t2.idBusiness
+# WHERE t1.idBusiness IS NULL;
 # SET SQL_SAFE_UPDATES = 1;
 # SELECT * FROM yelpdb.reviews_staging;
 #
 # SET foreign_key_checks = 0;
-# INSERT INTO yelpdb.reviews (Username, Rating, Reviews, ReviewDate, idBusinesses)
-# 	SELECT 1, CAST(rating AS DECIMAL(3,2)), review, STR_TO_DATE(Review_date, '%Y-%m-%d'), idBusinesses
+# INSERT INTO yelpdb.reviews (Username, Rating, Reviews, ReviewDate, idBusiness)
+# 	SELECT 1, CAST(rating AS DECIMAL(3,2)), review, STR_TO_DATE(Review_date, '%Y-%m-%d'), idBusiness
 # 	FROM yelpdb.reviews_staging;
 # SET foreign_key_checks = 1;
 #
