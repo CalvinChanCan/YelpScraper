@@ -19,21 +19,21 @@ DROP TABLE IF EXISTS `yelpdb`.`Usernames`;
 
 CREATE TABLE IF NOT EXISTS `yelpdb`.`Usernames`
 (
-    `UsernameId`   INT          NOT NULL AUTO_INCREMENT,
-    `Username`     VARCHAR(255) NOT NULL,
-    `FirstName`    VARCHAR(45)  NULL,
-    `LastName`     VARCHAR(45)  NULL,
-    `Email`        VARCHAR(45)  NULL,
-    `PhoneNum`     VARCHAR(45)  NULL,
-    `Bio`          TEXT         NULL,
+    `UsernameId`      INT          NOT NULL AUTO_INCREMENT,
+    `Username`        VARCHAR(255) NOT NULL,
+    `FirstName`       VARCHAR(45)  NULL,
+    `LastName`        VARCHAR(45)  NULL,
+    `Email`           VARCHAR(45)  NULL,
+    `PhoneNum`        VARCHAR(45)  NULL,
+    `Bio`             TEXT         NULL,
 
-    `City`         VARCHAR(45)  NULL,
-    `State`        VARCHAR(45)  NULL,
-    `Elite`        INT          NULL,
-    `FriendCount`  INT          NULL,
-    `ReviewCount`  INT          NULL,
-    `PhotoCount`   INT          NULL,
-    `Yelp_User_id` TEXT         NULL,
+    `UserCity`        VARCHAR(45)  NULL,
+    `UserState`       VARCHAR(45)  NULL,
+    `Elite`           INT          NULL,
+    `FriendCount`     INT          NULL,
+    `UserReviewCount` INT          NULL,
+    `PhotoCount`      INT          NULL,
+    `Yelp_User_id`    TEXT         NULL,
     PRIMARY KEY (`UsernameId`)
 )
     ENGINE = InnoDB;
@@ -46,19 +46,19 @@ DROP TABLE IF EXISTS `yelpdb`.`Businesses`;
 
 CREATE TABLE IF NOT EXISTS `yelpdb`.`Businesses`
 (
-    `idBusiness`       INT           NOT NULL AUTO_INCREMENT,
-    `BusinessName`     VARCHAR(255)   NULL,
-    `ReviewCount`      INT           NULL,
-    `Rating`           DECIMAL(3, 1) NULL,
-    `latitude`         DOUBLE        NULL,
-    `Longitude`        DOUBLE        NULL,
-    `price`            VARCHAR(45)   NULL,
-    `city`             VARCHAR(45)   NULL,
-    `state`            VARCHAR(45)   NULL,
-    `ZipCode`          VARCHAR(45)   NULL,
-    `Address`          VARCHAR(45)   NULL,
-    `Phone`            VARCHAR(45)   NULL,
-    `yelp_business_id` TEXT          NULL,
+    `idBusiness`          INT           NOT NULL AUTO_INCREMENT,
+    `BusinessName`        VARCHAR(255)  NULL,
+    `BusinessReviewCount` INT           NULL,
+    `Rating`              DECIMAL(3, 1) NULL,
+    `latitude`            DOUBLE        NULL,
+    `Longitude`           DOUBLE        NULL,
+    `price`               VARCHAR(45)   NULL,
+    `city`                VARCHAR(45)   NULL,
+    `state`               VARCHAR(45)   NULL,
+    `ZipCode`             VARCHAR(45)   NULL,
+    `Address`             VARCHAR(45)   NULL,
+    `Phone`               VARCHAR(45)   NULL,
+    `yelp_business_id`    TEXT          NULL,
 
     PRIMARY KEY (`idBusiness`)
 )
@@ -71,18 +71,20 @@ DROP TABLE IF EXISTS `yelpdb`.`Reviews`;
 
 CREATE TABLE IF NOT EXISTS `yelpdb`.`Reviews`
 (
-    `idReviews`      INT           NOT NULL AUTO_INCREMENT,
-    `Yelp_Review_id` VARCHAR(255)  NULL,
-    `Rating`         DECIMAL(2, 1) NULL,
-    `Reviews`        TEXT          NULL,
-    `Username`       INT           NOT NULL,
-    `idBusiness`     INT           NOT NULL,
-    `ReviewDate`     DATE          NULL,
+    `idReviews`        INT           NOT NULL AUTO_INCREMENT,
+    `Yelp_business_id` VARCHAR(255)  NULL,
+    `Rating`           DECIMAL(2, 1) NULL,
+    `Reviews`          TEXT          NULL,
+    `UsernameId`       INT           NOT NULL,
+    `idBusiness`       INT           NOT NULL,
+    `ReviewDate`       DATE          NULL,
+    `yelp_review_id`   TEXT          NULL,
+
     PRIMARY KEY (`idReviews`),
-    INDEX `fk_Reviews_Users1_idx` (`Username` ASC) VISIBLE,
+    INDEX `fk_Reviews_Users1_idx` (`UsernameId` ASC) VISIBLE,
     INDEX `fk_Reviews_Businesses1_idx` (`idBusiness` ASC) VISIBLE,
     CONSTRAINT `fk_Reviews_Users1`
-        FOREIGN KEY (`Username`)
+        FOREIGN KEY (`UsernameId`)
             REFERENCES `yelpdb`.`Usernames` (`UsernameId`)
             ON DELETE NO ACTION
             ON UPDATE NO ACTION,
@@ -100,11 +102,18 @@ CREATE TABLE IF NOT EXISTS `yelpdb`.`Reviews`
 DROP TABLE IF EXISTS Businesses_Categories;
 CREATE TABLE IF NOT EXISTS Businesses_Categories
 (
-
-    `business_id`   INT AUTO_INCREMENT NOT NULL,
-    `business_name` TEXT,
-    `category`      TEXT,
-    PRIMARY KEY (`business_id`)
+    `category_id`      INT AUTO_INCREMENT NOT NULL,
+    `business_id`      INT,
+    `business_name`    TEXT,
+    `category`         TEXT,
+    `yelp_business_id` TEXT,
+    PRIMARY KEY (`category_id`),
+    INDEX `fk_business_id_idx` (`business_id` ASC) VISIBLE,
+    CONSTRAINT `fk_business_id_idx`
+        FOREIGN KEY (`business_id`)
+            REFERENCES `yelpdb`.`businesses` (`idBusiness`)
+            ON DELETE NO ACTION
+            ON UPDATE NO ACTION
 )
     ENGINE = InnoDB;
 
@@ -128,12 +137,13 @@ CREATE TABLE IF NOT EXISTS Businesses_Staging
     `address1`        TEXT,
     `address2`        TEXT,
     `address3`        TEXT,
-    `city`            TEXT,
+    `BusinessCity`    TEXT,
     `zip_code`        TEXT,
     `country`         TEXT,
-    `state`           TEXT,
+    `BusinessState`   TEXT,
     `display_address` TEXT,
-    `rating`          TEXT
+    `rating`          TEXT,
+    `review_count`    TEXT
 )
     ENGINE = InnoDB;
 
@@ -153,50 +163,46 @@ LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/yelp_data_busine
     IGNORE 1 LINES
     (business_id, business_name, category);
 
-SELECT * FROM categories_staging;
-SELECT *FROM Businesses_Staging;
-SELECT *FROM businesses;
-SELECT * FROM usernames;
 
 
-# SELECT LPAD(zip, 5, '0') as zipcode FROM table;
-
-INSERT INTO yelpdb.businesses (BusinessName, Rating, latitude, Longitude, price, city, state, ZipCode, Address,
-                               yelp_business_id)
-    SELECT business_name,
-           rating,
-           CAST(latitude AS DOUBLE) as Latitude,
-           CAST(longitude AS DOUBLE) as Longitude,
-           price,
-           city,
-           state,
-           LPAD(zip_code, 5, '0'),
-           address1,
-           business_id
-    from yelpdb.Businesses_Staging;
-
-
-    SELECT business_name,
-           rating,
-           CAST(latitude AS DOUBLE) as Latitude,
-           CAST(longitude AS DOUBLE) as Longitude,
-           price,
-           city,
-           state,
-           zip_code,
-           address1,
-           business_id
-    from yelpdb.Businesses_Staging;
-
-
-SELECT * FROM businesses_staging;
+SELECT *
+FROM businesses_staging;
 LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/yelp_data_business.csv' IGNORE INTO TABLE yelpdb.Businesses_Staging
     FIELDS TERMINATED BY ',' ENCLOSED BY '"'
     LINES TERMINATED BY '\r\n'
     IGNORE 1 LINES
-    (business_id, business_name, price, latitude, longitude, address1, address2, address3, city, zip_code, country,
-     state, display_address, rating);
+    (business_id, business_name, price, latitude, longitude, address1, address2, address3, BusinessCity, zip_code,
+     country,
+     BusinessState, display_address, rating, review_count);
 
+
+INSERT INTO yelpdb.businesses (BusinessName, Rating, BusinessReviewCount, latitude, Longitude, price, city, state,
+                               ZipCode,
+                               Address,
+                               yelp_business_id)
+SELECT business_name,
+       rating,
+       review_count,
+       CAST(latitude AS DOUBLE)  as Latitude,
+       CAST(longitude AS DOUBLE) as Longitude,
+       price,
+       BusinessCity,
+       BusinessState,
+       LPAD(zip_code, 5, '0'),
+       address1,
+       business_id
+from yelpdb.Businesses_Staging;
+
+INSERT INTO Businesses_Categories (business_id, business_name, category, yelp_business_id)
+SELECT idBusiness, business_name, category, b.yelp_business_id
+FROM categories_staging
+         LEFT JOIN businesses b on categories_staging.business_id = b.yelp_business_id;
+ALTER TABLE Businesses_Categories
+    DROP yelp_business_id;
+
+SELECT idBusiness, business_name, category, b.yelp_business_id
+FROM categories_staging
+         LEFT JOIN businesses b on categories_staging.business_id = b.yelp_business_id;
 
 
 DROP TABLE IF EXISTS Yelp_Users_stagings;
@@ -210,8 +216,6 @@ CREATE TABLE IF NOT EXISTS Yelp_Users_stagings
     `friend_count` INT,
     `review_count` INT,
     `photo_count`  INT
-
-
 )
     ENGINE = InnoDB;
 
@@ -222,9 +226,11 @@ LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/yelp_data_users_
     IGNORE 1 LINES
     (user_id, username, city, state, elite, friend_count, review_count, photo_count);
 
-SELECT *FROM yelp_users_stagings;
+SELECT *
+FROM yelp_users_stagings;
 
-INSERT INTO yelpdb.Usernames (Username, City, State, Elite, FriendCount, ReviewCount, PhotoCount, Yelp_User_id)
+INSERT INTO yelpdb.Usernames (Username, UserCity, UserState, Elite, FriendCount, UserReviewCount, PhotoCount,
+                              Yelp_User_id)
 SELECT username,
        city,
        state,
@@ -235,17 +241,81 @@ SELECT username,
        user_id
 from yelpdb.yelp_users_stagings;
 
-SELECT *
-From usernames;
 
-SELECT *
-FROM categories_staging;
+DROP TABLE IF EXISTS reviews_staging;
+CREATE TABLE IF NOT EXISTS reviews_staging
+(
+    `yelp_review_id`  TEXT,
+    `business_id`     TEXT,
+    `business_name`   TEXT,
+    `user_yelp_id`    TEXT,
+    `user_name`       TEXT,
+    `review_date`     TEXT,
+    `review_rating`   TEXT,
+    `feedback_cool`   TEXT,
+    `feedback_funny`  TEXT,
+    `feedback_useful` TEXT,
+    `owner_reply`     TEXT,
+    `written_content` TEXT
+)
+    ENGINE = InnoDB;
 
-SELECT *
-FROM businesses;
+
+LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/yelp_data_business_reviews.csv' IGNORE INTO TABLE yelpdb.reviews_staging
+    FIELDS TERMINATED BY ',' ENCLOSED BY '"'
+    LINES TERMINATED BY '\n'
+    IGNORE 1 LINES
+    (yelp_review_id, business_id, business_name, user_yelp_id, user_name, review_date, review_rating, feedback_cool,
+     feedback_funny,
+     feedback_useful,
+     owner_reply, written_content);
+
+
+INSERT INTO reviews (`Yelp_business_id`, `Rating`, `UsernameId`, `idBusiness`, `ReviewDate`, `Reviews`)
+SELECT yelp_business_id,
+       rating,
+       UsernameId,
+       idBusiness,
+       str_to_date(review_date, '%m/%d/%Y'),
+       written_content
+FROM (SELECT *
+      FROM reviews_staging
+               LEFT OUTER JOIN businesses on businesses.yelp_business_id = reviews_staging.business_id
+               LEFT OUTER JOIN usernames on usernames.Yelp_User_id = reviews_staging.user_yelp_id) as Subtable;
+
+SELECT COUNT(*)
+FROM reviews_staging
+
+         INNER  JOIN usernames on usernames.Yelp_User_id = reviews_staging.user_yelp_id;
+
+SELECT COUNT(*) FROM reviews_staging;
+
+SELECT * FROM usernames where usernames.username = 'Shirley W.';
+SELECT * FROM usernames where usernames.Yelp_User_id = 'h-3Nq3XQVoeuB0C17s76UQ';
+SELECT * FROM reviews_staging where user_yelp_id = 'h-3Nq3XQVoeuB0C17s76UQ';
+SELECT * FROM usernames;
+SELECT * FROM reviews_staging LEFT JOIN usernames ON Yelp_User_id = user_yelp_id where UsernameId is null;
+INNER JOIN businesses on yelp_business_id = business_id where UsernameId is null;
+
+
+SELECT business_id,
+       business_name,
+       yelp_business_id,
+       rating,
+       UsernameId,
+       businesses.idBusiness,
+       str_to_date(review_date, '%m/%d/%Y'),
+       written_content
+FROM reviews_staging
+         JOIN businesses ON yelp_business_id = business_id
+         JOIN usernames u on user_yelp_id = Yelp_User_id
+WHERE idbusiness IS NULL;
 
 SELECT *
 FROM reviews;
+SELECT *
+FROM reviews_staging;
+
 
 #
 #
